@@ -1,17 +1,58 @@
 package com.example.hexeditor;
 
-import javax.swing.*;
+import javax.swing.JPanel;
+import javax.swing.SwingWorker;
+import javax.swing.JLabel;
+import javax.swing.JTable;
+import javax.swing.JScrollPane;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+import javax.swing.ListSelectionModel;
+import javax.swing.JMenuBar;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableCellRenderer;
-import java.awt.*;
+import java.awt.GridLayout;
+import java.awt.Font;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Color;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import static java.awt.Color.WHITE;
+import static java.awt.Color.YELLOW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Главное окно HEX-редактора для просмотра и редактирования бинарных файлов.
+ * Предоставляет функциональность для:
+ * - Отображения файла в hex-формате с адресацией
+ * - Редактирования содержимого файла
+ * - Поиска данных по шаблону
+ * - Копирования/вставки данных
+ * - Интерпретации данных в различных форматах (int, float и т.д.)
+ */
 public class HexEditorFrame extends JFrame {
+    /** Ширина окна по умолчанию */
+    public static final int WIDTH = 900;
+    /** Высота окна по умолчанию */
+    public static final int HEIGHT = 600;
+    /** Количество байт в одной строке */
+    public static final int BYTES_PER_ROW = 16;
+    /** Размер шрифта для отображения */
+    public static final int FONT_SIZE = 12;
+    /** Цвет выделения ячеек */
+    public static final Color SELECTED_BLUE_COLOR = new Color(173, 216, 230);
+
     private File currentFile;
     private HexFileModel fileModel;
     private JTable table;
@@ -21,24 +62,36 @@ public class HexEditorFrame extends JFrame {
     private int clipboardRows = 0;
     private int clipboardCols = 0;
     HexTableModel tableModel = null;
+    private static final Logger logger = LoggerFactory.getLogger(HexEditorFrame.class);
+
+    /**
+     * Создает новый экземпляр редактора для указанного файла.
+     *
+     * @param file файл для редактирования
+     * @throws IOException если произошла ошибка при открытии файла
+     */
     public HexEditorFrame(File file) throws IOException {
+        logger.info("Создание HexEditorFrame для файла: {}", file.getAbsolutePath());
         this.currentFile = file;
         initializeEditor();
     }
 
-
-
+    /**
+     * Инициализирует компоненты редактора.
+     *
+     * @throws IOException если произошла ошибка при инициализации
+     */
     private void initializeEditor() throws IOException {
+        logger.debug("Инициализация редактора...");
         this.fileModel = new HexFileModel(currentFile);
         setTitle("HEX редактор - " + currentFile.getName());
-        setSize(900, 600);
+        setSize(WIDTH, HEIGHT);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         getContentPane().removeAll();
 
-        int bytesPerRow = 16;
-        int rowCount = (int) (fileModel.getLength()/15);
+        int rowCount = (int) (fileModel.getLength()/(BYTES_PER_ROW - 1));
 
-        tableModel = new HexTableModel(fileModel, bytesPerRow);
+        tableModel = new HexTableModel(fileModel, BYTES_PER_ROW);
         table = new JTable(tableModel) {
             @Override
             public String getToolTipText(MouseEvent e) {
@@ -49,17 +102,20 @@ public class HexEditorFrame extends JFrame {
                 long offset = (long) row * getColumnCount() + col;
                 try {
                     int value = fileModel.readByte(offset);
+                    logger.info("Файл успешно загружен: {} (размер: {} байт)",
+                            currentFile.getName(), fileModel.getLength());
                     int unsigned = value & 0xFF;
 
                     return "<html>" + String.format("Offset: %08X\nHex: %02X\nSigned: %d\nUnsigned: %d\n", offset, unsigned, value, unsigned).replace("\n", "<br>") + "</html>";
                 } catch (IOException ex) {
+                    logger.error("Ошибка инициализации редактора для файла {} {}", currentFile.getName(), e);
                     return "Ошибка чтения байта";
                 }
             }
         };
 
 
-        table.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        table.setFont(new Font("Monospaced", Font.PLAIN, FONT_SIZE));
         table.setCellSelectionEnabled(true);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -68,7 +124,7 @@ public class HexEditorFrame extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(table);
 
-        JTable rowHeader = new JTable(new RowHeaderTableModel(rowCount, bytesPerRow));
+        JTable rowHeader = new JTable(new RowHeaderTableModel(rowCount, BYTES_PER_ROW));
         rowHeader.setPreferredScrollableViewportSize(new Dimension(80, 0));
         rowHeader.setDefaultRenderer(Object.class, table.getTableHeader().getDefaultRenderer());
         rowHeader.setRowHeight(table.getRowHeight());
@@ -92,26 +148,21 @@ public class HexEditorFrame extends JFrame {
                 int offset = row * bytesPerRow + column;
 
                 if (isSelected) {
-                    // Пользовательское выделение (мышь/клавиатура)
-                    c.setBackground(new Color(173, 216, 230)); // светло-голубой
+                    c.setBackground(SELECTED_BLUE_COLOR);
                 } else if (model.isHighlighted(offset)) {
-                    // Подсветка поиска
-                    c.setBackground(Color.YELLOW);
+                    c.setBackground(YELLOW);
                 } else {
-                    // Обычный фон
-                    c.setBackground(Color.WHITE);
+                    c.setBackground(WHITE);
                 }
 
                 return c;
             }
         });
 
-
-
         statusLabel = new JLabel("");
-        statusLabel.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        statusLabel.setFont(new Font("Monospaced", Font.PLAIN, FONT_SIZE));
         valueLabel = new JLabel(" ");
-        valueLabel.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        valueLabel.setFont(new Font("Monospaced", Font.PLAIN, FONT_SIZE));
         JPanel infoPanel = new JPanel(new GridLayout(2, 1));
         infoPanel.add(statusLabel);
         infoPanel.add(valueLabel);
@@ -127,14 +178,19 @@ public class HexEditorFrame extends JFrame {
         repaint();
     }
 
-
+    /**
+     * Создает меню поиска.
+     *
+     * @return созданное меню поиска
+     */
     private JMenu buildSearchMenu() {
+        logger.trace("Создание меню 'Поиск'");
         JMenu searchMenu = new JMenu("Поиск");
         JMenuItem findItem = new JMenuItem("Найти...");
         JMenuItem clearHighlights = new JMenuItem("Снять выделение");
         clearHighlights.addActionListener(e -> {
-            tableModel.clearSearchHighlights(); // вызываем метод очистки
-            table.repaint(); // перерисовываем таблицу
+            tableModel.clearSearchHighlights();
+            table.repaint();
         });
 
         searchMenu.add(clearHighlights);
@@ -151,70 +207,70 @@ public class HexEditorFrame extends JFrame {
                 return;
             }
 
-            try {
-                SearchController searcher = new SearchController(fileModel, tableModel);
-
-                if (mask == null) {
-                    mask = new byte[pattern.length];
-                    Arrays.fill(mask, (byte) 0xFF);
-                }
-                assert pattern != null;
-                searcher.searchWithMask(pattern,mask);
-
-
-
-
-                // table.clearSelection();
-
-                table.clearSelection();
-                ListSelectionModel rowSel = table.getSelectionModel();
-                ListSelectionModel colSel = table.getColumnModel().getSelectionModel();
-
-                rowSel.setValueIsAdjusting(true);
-                colSel.setValueIsAdjusting(true);
-
-//                for (long offset : results) {
-//                    int row = (int) (offset / table.getColumnCount());
-//                    int col = (int) (offset % table.getColumnCount());
-//
-//                    // добавляем строку и столбец в выделение
-//                    rowSel.addSelectionInterval(row, row);
-//                    colSel.addSelectionInterval(col, col);
-//                }
-
-
-                rowSel.setValueIsAdjusting(false);
-                colSel.setValueIsAdjusting(false);
-
-
-//               // long first = results.get(0);
-//                table.scrollRectToVisible(table.getCellRect(
-//                        (int)(first / table.getColumnCount()),
-//                        (int)(first % table.getColumnCount()),
-//                        true));
-
-             //   statusLabel.setText("Найдено: " + results.size() + " совпадений");
-            } catch (Exception ex) {
-                System.out.println("====================");
-                ex.printStackTrace();
-               // showError("Ошибка поиска: " + ex);
+            if (mask == null) {
+                mask = new byte[pattern.length];
+                Arrays.fill(mask, (byte) 0xFF);
             }
+
+            byte[] finalPattern = pattern;
+            byte[] finalMask = mask;
+
+            new SwingWorker<List<Integer>, Void>() {
+                @Override
+                protected List<Integer> doInBackground() throws Exception {
+                    SearchController searcher = new SearchController(fileModel);
+                    return searcher.searchWithMask(finalPattern, finalMask);
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        List<Integer> result = get();
+
+                        SwingUtilities.invokeLater(() -> {
+                            tableModel.setHighlightedOffsets(result);
+                            table.repaint();
+                        });
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        showError("Ошибка поиска: " + ex.getMessage());
+                    }
+                }
+            }.execute();
         });
+
 
         searchMenu.add(findItem);
         return searchMenu;
     }
 
+    /**
+     * Создает меню файла.
+     *
+     * @return созданное меню файла
+     */
     private JMenu buildFileMenu() {
+        logger.trace("Создание меню 'Файл'");
         JMenu fileMenu = new JMenu("Файл");
 
         JMenuItem openItem = getJMenuItem();
 
         JMenuItem saveItem = new JMenuItem("Сохранить");
         saveItem.addActionListener(e -> {
-            try (OutputStream out = Files.newOutputStream(currentFile.toPath())) {
+            try {
                 byte[] all = fileModel.readAll();
-                out.write(all);
+                fileModel.close();
+
+                try (OutputStream out = Files.newOutputStream(currentFile.toPath())) {
+                    out.write(all);
+                }
+
+                fileModel = new HexFileModel(currentFile);
+                tableModel = new HexTableModel(fileModel, BYTES_PER_ROW);
+                table.setModel(tableModel);
+                tableModel.fireTableStructureChanged();
+
                 statusLabel.setText("Файл сохранен: " + currentFile.getName());
             } catch (IOException ex) {
                 showError("Ошибка сохранения: " + ex.getMessage());
@@ -265,7 +321,13 @@ public class HexEditorFrame extends JFrame {
         return openItem;
     }
 
+    /**
+     * Создает меню правки.
+     *
+     * @return созданное меню правки
+     */
     private JMenu buildEditMenu() {
+        logger.trace("Создание меню 'Правка'");
         JMenu editMenu = new JMenu("Правка");
 
         JMenuItem deleteItem = getItem();
@@ -339,6 +401,7 @@ public class HexEditorFrame extends JFrame {
                         }
                     }
                 }
+
                 table.repaint();
             } catch (IOException ex) {
                 showError("Ошибка вставки: " + ex.getMessage());
@@ -399,7 +462,14 @@ public class HexEditorFrame extends JFrame {
         return deleteItem;
     }
 
+    /**
+     * Получает выбранные байты из таблицы.
+     *
+     * @return двумерный массив выбранных байт
+     * @throws IOException если произошла ошибка чтения
+     */
     private byte[][] getSelectedBytes() throws IOException {
+        logger.debug("Получение выбранных байт (строк: {}, колонок: {})", clipboardRows, clipboardCols);
         int[] rows = table.getSelectedRows();
         int[] cols = table.getSelectedColumns();
         clipboardRows = rows.length;
@@ -414,11 +484,21 @@ public class HexEditorFrame extends JFrame {
         return data;
     }
 
+    /**
+     * Показывает диалоговое окно с сообщением об ошибке.
+     *
+     * @param msg текст сообщения об ошибке
+     */
     private void showError(String msg) {
+        logger.error(msg);
         JOptionPane.showMessageDialog(this, msg, "Ошибка", JOptionPane.ERROR_MESSAGE);
     }
 
+    /**
+     * Обновляет статусную строку с информацией о текущей позиции.
+     */
     private void updateStatus() {
+        logger.trace("Обновление статусной строки");
         int row = table.getSelectedRow();
         int col = table.getSelectedColumn();
 
@@ -428,39 +508,31 @@ public class HexEditorFrame extends JFrame {
             byte[][] selectedBytes = getSelectedBytes();
             int available = (int) (fileModel.getLength() - offset);
             if (selectedBytes.length > 0) {
-                 available = selectedBytes.length * selectedBytes[0].length;
+                available = selectedBytes.length * selectedBytes[0].length;
             }
             if (available >= 2) {
-               // byte[] b2 = fileModel.readBlock(offset, 2);
                 sb.append(String.format("int16: %d  uint16: %d  ",
                         DataInterpreter.toShort(selectedBytes, true),
                         DataInterpreter.toShort(selectedBytes, false) & 0xFFFF));
             }
             if (available >= 4) {
-                //byte[] b4 = fileModel.readBlock(offset, 4);
                 sb.append(String.format("int32: %d  uint32: %d  float: %.6f  ",
                         DataInterpreter.toInt(selectedBytes, true),
                         DataInterpreter.toUnsignedInt(selectedBytes),
                         DataInterpreter.toFloat(selectedBytes)));
             }
             if (available >= 8) {
-                //byte[] b8 = fileModel.readBlock(offset, 8);
                 sb.append(String.format("int64: %d  double: %.16E",
                         DataInterpreter.toLong(selectedBytes),
                         DataInterpreter.toDouble(selectedBytes)));
             }
 
             valueLabel.setText(sb.toString());
-
-
-            valueLabel.setText(sb.toString());
-
+            logger.debug("Отображение данных: {}", sb);
         } catch (IOException e) {
             statusLabel.setText("Read error at offset: " + offset);
+            logger.warn("Ошибка обновления статуса", e);
         }
     }
 
-    public void shutdown() throws IOException {
-        fileModel.close();
-    }
 }

@@ -6,14 +6,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HexTableModel extends AbstractTableModel {
+    private static final String EMPTY_VALUE = "";
+    private static final String ERROR_VALUE = "??";
+
     private final HexFileModel fileModel;
     private final int bytesPerRow;
+    private List<Integer> highlightedOffsets = new ArrayList<>();
 
     public HexTableModel(HexFileModel model, int bytesPerRow) {
         this.fileModel = model;
         this.bytesPerRow = bytesPerRow;
     }
-
 
     @Override
     public int getRowCount() {
@@ -30,14 +33,15 @@ public class HexTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Object getValueAt(int row, int col) {
+    public Object getValueAt(int row, int column) {
         try {
-            long offset = (long) row * bytesPerRow + col;
-            if (offset >= fileModel.getLength()) return "";
-            byte b = fileModel.readByte(offset);
-            return String.format("%02X", b);
+            if (isInvalidPosition(row, column)) {
+                return EMPTY_VALUE;
+            }
+            byte byteValue = readByteAtPosition(row, column);
+            return formatByteAsHex(byteValue);
         } catch (IOException e) {
-            return "??";
+            return ERROR_VALUE;
         }
     }
 
@@ -59,7 +63,9 @@ public class HexTableModel extends AbstractTableModel {
     @Override
     public void setValueAt(Object aValue, int row, int col) {
         String hexStr = aValue.toString().trim().toUpperCase();
-        if (!hexStr.matches("[0-9A-F]{1,2}")) return;
+        if (!hexStr.matches("[0-9A-F]{1,2}")) {
+            return;
+        }
 
         try {
             int value = Integer.parseInt(hexStr, 16);
@@ -71,11 +77,8 @@ public class HexTableModel extends AbstractTableModel {
         }
     }
 
-    private List<Integer> highlightedOffsets = new ArrayList<>();
-
     public void setHighlightedOffsets(List<Integer> offsets) {
-        this.highlightedOffsets = offsets;
-
+        this.highlightedOffsets = new ArrayList<>(offsets);
         fireTableDataChanged();
     }
 
@@ -87,4 +90,21 @@ public class HexTableModel extends AbstractTableModel {
         highlightedOffsets.clear();
     }
 
+    private boolean isInvalidPosition(int row, int column) throws IOException {
+        long offset = calculateOffset(row, column);
+        return offset >= fileModel.getLength();
+    }
+
+    private long calculateOffset(int row, int column) {
+        return (long) row * bytesPerRow + column;
+    }
+
+    private byte readByteAtPosition(int row, int column) throws IOException {
+        long offset = calculateOffset(row, column);
+        return fileModel.readByte(offset);
+    }
+
+    private String formatByteAsHex(byte value) {
+        return String.format("%02X", value);
+    }
 }

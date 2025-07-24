@@ -1,0 +1,20 @@
+Format: 1.8
+Date: Fri, 25 Jul 2025 00:35:14 +0300
+Source: hex-editor
+Binary: hex-editor
+Architecture: all
+Version: 1.0
+Distribution: unknown
+Urgency: low
+Maintainer: Rodion Gorchatov <rodion56730@gmail.com>
+Changed-By: Rodion Gorchatov <rodion56730@gmail.com>
+Description:
+ hex-editor - Advanced Hex Editor
+Changes:
+ hex-editor (1.0) unknown; urgency=low
+Checksums-Sha1:
+ de661bddec1bd3724e490264ddfff2a3b9820063 708010 hex-editor_1.0-SNAPSHOT.deb
+Checksums-Sha256:
+ c9b8a7c493e13516133f08e9706dfa58742d8efa110c68110b338b23e6de74f1 708010 hex-editor_1.0-SNAPSHOT.deb
+Files:
+ 66f891320e19f6fd02908cdd9e37e684 708010 utils optional hex-editor_1.0-SNAPSHOT.deb

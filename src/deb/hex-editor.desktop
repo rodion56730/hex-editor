@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Hex Editor
+Comment=View and edit binary files
+Exec=/usr/bin/hex-editor
+Icon=hex-editor
+Terminal=false
+Type=Application
+Categories=Utility;

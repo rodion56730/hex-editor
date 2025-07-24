@@ -1,8 +1,10 @@
 package com.example.hexeditor;
 
-import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
+import javax.swing.JFileChooser;
+import javax.swing.SwingUtilities;
+import javax.swing.JOptionPane;
 
 public class Main {
     public static void main(String[] args) {

@@ -2,57 +2,120 @@ package com.example.hexeditor;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 
+/**
+ * Утилитарный класс для преобразования двумерных массивов байт
+ * в примитивные типы данных с little-endian порядком байт.
+ * Поддерживает преобразование в следующие типы:
+ *   Целочисленные: short, int, long
+ *   Числа с плавающей точкой: float, double
+ *   Беззнаковые целые (unsigned int)
+ * Нулевые массивы и подмассивы обрабатываются корректно (возвращаются как пустые данные).
+ */
 public class DataInterpreter {
 
+    /**
+     * Преобразует двумерный массив байт в значение типа short.
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @param signed если true - интерпретировать как знаковое число
+     * @return преобразованное значение short
+     * @see ByteBuffer#getShort()
+     */
     public static short toShort(byte[][] data, boolean signed) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data)).order(ByteOrder.LITTLE_ENDIAN);
-        return buffer.getShort(); // для unsigned нужно кастить
+        return ByteBuffer.wrap(flatten(data))
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getShort();
     }
 
+    /**
+     * Преобразует двумерный массив байт в значение типа int.
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @param signed если true - интерпретировать как знаковое число
+     * @return преобразованное значение int
+     * @see ByteBuffer#getInt()
+     */
     public static int toInt(byte[][] data, boolean signed) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data)).order(ByteOrder.LITTLE_ENDIAN);
-        System.out.println(buffer);
-        return buffer.getInt();
+        return ByteBuffer.wrap(flatten(data))
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getInt();
     }
 
+    /**
+     * Преобразует двумерный массив байт в беззнаковое значение типа long (32 бита).
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @return преобразованное беззнаковое значение в диапазоне long
+     */
     public static long toUnsignedInt(byte[][] data) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data)).order(ByteOrder.LITTLE_ENDIAN);
-        return buffer.getInt() & 0xFFFFFFFFL;
+        return toInt(data, false) & 0xFFFFFFFFL;
     }
 
+    /**
+     * Преобразует двумерный массив байт в значение типа long.
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @return преобразованное значение long
+     * @see ByteBuffer#getLong()
+     */
     public static long toLong(byte[][] data) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data)).order(ByteOrder.LITTLE_ENDIAN);
-        return buffer.getLong();
+        return ByteBuffer.wrap(flatten(data))
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getLong();
     }
 
+    /**
+     * Преобразует двумерный массив байт в значение типа float.
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @return преобразованное значение float
+     * @see ByteBuffer#getFloat()
+     */
     public static float toFloat(byte[][] data) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data)).order(ByteOrder.LITTLE_ENDIAN);
-        System.out.println(buffer);
-        return buffer.getFloat();
+        return ByteBuffer.wrap(flatten(data))
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getFloat();
     }
 
+    /**
+     * Преобразует двумерный массив байт в значение типа double.
+     *
+     * @param data двумерный массив байт (может быть null или содержать null-подмассивы)
+     * @return преобразованное значение double
+     * @see ByteBuffer#getDouble()
+     */
     public static double toDouble(byte[][] data) {
-        ByteBuffer buffer = ByteBuffer.wrap(flatten2DByteArray(data))
-                .order(ByteOrder.LITTLE_ENDIAN);
-        return buffer.getDouble();
+        return ByteBuffer.wrap(flatten(data))
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getDouble();
     }
 
-    public static byte[] flatten2DByteArray(byte[][] arr) {
-        int totalLength = 0;
-        for (byte[] subArray : arr) {
-            totalLength += subArray.length;
+    /**
+     * Преобразует двумерный массив байт в одномерный.
+     * Обрабатывает null-значения:
+     *   Если входной массив null - возвращает пустой массив
+     *   Если подмассивы null - они пропускаются
+     *
+     * @param data двумерный массив байт (может быть null)
+     * @return одномерный массив байт (никогда не null)
+     */
+    private static byte[] flatten(byte[][] data) {
+        if (data == null) return new byte[0];
+
+        int length = 0;
+        for (byte[] arr : data) {
+            length += arr != null ? arr.length : 0;
         }
 
-        byte[] result = new byte[totalLength];
-        int position = 0;
-
-        for (byte[] subArray : arr) {
-            System.arraycopy(subArray, 0, result, position, subArray.length);
-            position += subArray.length;
+        byte[] result = new byte[length];
+        int pos = 0;
+        for (byte[] arr : data) {
+            if (arr != null) {
+                System.arraycopy(arr, 0, result, pos, arr.length);
+                pos += arr.length;
+            }
         }
-        System.out.println(Arrays.toString(result));
         return result;
     }
 }

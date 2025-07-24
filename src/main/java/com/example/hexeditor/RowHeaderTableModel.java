@@ -3,8 +3,8 @@ package com.example.hexeditor;
 import javax.swing.table.AbstractTableModel;
 
 public class RowHeaderTableModel extends AbstractTableModel {
-    private int rowCount;
-    private int bytesPerRow;
+    private final int rowCount;
+    private final int bytesPerRow;
 
     public RowHeaderTableModel(int rowCount, int bytesPerRow) {
         this.rowCount = rowCount;

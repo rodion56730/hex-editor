@@ -1,8 +1,11 @@
 package com.example.hexeditor;
 
-import javax.swing.*;
-import java.awt.*;
-import java.util.Arrays;
+import javax.swing.JTextField;
+import javax.swing.JDialog;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JFrame;
+import java.awt.GridLayout;
 
 public class SearchDialog extends JDialog {
     private final JTextField hexField;
@@ -56,8 +59,7 @@ public class SearchDialog extends JDialog {
     private byte[] parseHexString(String hex) {
         String[] parts = hex.trim().split("\\s+");
         byte[] result = new byte[parts.length];
-        System.out.println(Arrays.toString(parts));
-        System.out.println(parts.length);
+
         if (parts.length == 0) {
             return result;
         }
